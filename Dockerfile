@@ -15,10 +15,10 @@ COPY requirements.txt .
 RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Estágio 2: Final
-# Partimos de uma imagem limpa para a versão final, reduzindo o tamanho
-# e a superfície de ataque ao não incluir ferramentas de build.
-FROM python:3.11-slim
+# Estágio 1: Build
+# Usamos uma imagem Python oficial e específica para garantir consistência.
+# A tag 'slim' resulta em uma imagem menor.
+FROM python:3.11-slim AS builder
 
 # Cria um usuário não-root para executar a aplicação.
 # Rodar como não-root é uma prática de segurança fundamental.
