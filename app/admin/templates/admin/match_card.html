@@ -1,0 +1,40 @@
+{# Lógica para exibir a equipe 1 #}
+{% if match.team1 %}
+    <form action="{{ url_for('admin.set_winner', match_id=match.id, winner_id=match.team1.id) }}" method="POST" class="d-grid">
+        <button type="submit" class="btn btn-sm {% if match.winner and match.winner.id == match.team1.id %}btn-success{% else %}btn-outline-primary{% endif %} {% if match.winner %}disabled{% endif %}">
+            {{ match.team1.name }}
+        </button>
+    </form>
+{% else %}
+    <span class="text-muted">Aguardando...</span>
+{% endif %}
+
+<small class="my-1">vs</small>
+
+{# Lógica para exibir a equipe 2 #}
+{% if match.team2 %}
+    <form action="{{ url_for('admin.set_winner', match_id=match.id, winner_id=match.team2.id) }}" method="POST" class="d-grid">
+        <button type="submit" class="btn btn-sm {% if match.winner and match.winner.id == match.team2.id %}btn-success{% else %}btn-outline-primary{% endif %} {% if match.winner %}disabled{% endif %}">
+            {{ match.team2.name }}
+        </button>
+    </form>
+{% else %}
+    <span class="text-muted">Aguardando...</span>
+{% endif %}
+
+{# Formulário para gerar link de veto, aparece se os 2 times estiverem definidos e não houver vencedor #}
+{% if match.team1 and match.team2 and not match.winner %}
+<hr class="my-2">
+<form action="{{ url_for('admin.generate_veto_link') }}" method="POST" class="mt-2">
+    <input type="hidden" name="match_id" value="{{ match.id }}">
+    <input type="hidden" name="team1_id" value="{{ match.team1.id }}">
+    <input type="hidden" name="team2_id" value="{{ match.team2.id }}">
+    <div class="input-group input-group-sm">
+        <select name="format" class="form-select">
+            <option value="MD1">MD1</option>
+            <option value="MD3">MD3</option>
+        </select>
+        <button class="btn btn-secondary" type="submit">Veto</button>
+    </div>
+</form>
+{% endif %}

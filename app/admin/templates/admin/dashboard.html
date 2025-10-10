@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Dashboard do Admin</h1>
+    <a href="{{ url_for('admin.logout') }}" class="btn btn-outline-danger">Sair</a>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h3>Gerenciamento da Chave</h3>
+    </div>
+    <div class="card-body">
+        {% if not bracket[1] %} {# Se não há partidas na rodada 1 #}
+            <p>A chave ainda não foi gerada. {{ teams|length }} de 8 equipes estão inscritas.</p>
+            {% if teams|length == 8 %}
+                <form action="{{ url_for('admin.generate_bracket') }}" method="POST">
+                    <button type="submit" class="btn btn-success">Gerar Chaveamento Aleatório</button>
+                </form>
+            {% else %}
+                <p class="text-warning">Aguarde 8 equipes se inscreverem.</p>
+            {% endif %}
+        {% else %}
+            <p>Chave gerada. Clique no nome de uma equipe para declará-la vencedora da partida.</p>
+            <div class="row g-3 text-center">
+                <div class="col-md-3 d-flex flex-column justify-content-around">
+                    <h5>Quartas</h5>
+                    {% for match in bracket[1] %}
+                    <div class="p-2 border rounded bg-dark my-2">
+                        {% include 'admin/match_card.html' %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3 d-flex flex-column justify-content-around">
+                    <h5>Semifinais</h5>
+                    {% for match in bracket[2] %}
+                    <div class="p-2 border rounded bg-dark my-2" style="min-height: 120px;">
+                        {% include 'admin/match_card.html' %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3 d-flex flex-column justify-content-around">
+                    <h5>Final</h5>
+                    {% for match in bracket[3] %}
+                    <div class="p-2 border rounded bg-dark my-2" style="min-height: 260px;">
+                        {% include 'admin/match_card.html' %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3 d-flex flex-column justify-content-center align-items-center">
+                     <h5>🏆 Campeão 🏆</h5>
+                     <div class="p-2 border rounded bg-dark my-2 w-100" style="min-height: 120px;">
+                        {% if bracket[3] and bracket[3][0].winner %}
+                            <span class="fw-bold fs-5 text-warning">{{ bracket[3][0].winner.name }}</span>
+                        {% else %}
+                            <span class="text-muted">Aguardando...</span>
+                        {% endif %}
+                     </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<div class="card">
+    <div class="card-header">
+        <h3>Equipes Inscritas ({{ teams|length }})</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Nome da Equipe</th>
+                        <th>Líder</th>
+                        <th>Discord (Líder)</th>
+                        <th>Steam (Líder)</th>
+                        <th>Jogador 2</th>
+                        <th>Discord (Jogador 2)</th>
+                        <th>Steam (Jogador 2)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for team in teams %}
+                    <tr>
+                        <td><strong>{{ team.name }}</strong></td>
+                        {% for player in team.players %}
+                            <td>{{ player.name }}</td>
+                            <td>{{ player.discord }}</td>
+                            <td><a href="{{ player.steam_link }}" target="_blank">{{ player.steam_link }}</a></td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

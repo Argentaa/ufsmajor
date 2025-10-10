@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+
+{% block title %}Sala de Veto{% endblock %}
+
+{% block styles %}
+<style>
+    .map-pool {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+    .map-card {
+        width: 130px;
+        cursor: pointer;
+        border: 3px solid transparent; /* Aumenta a espessura para um efeito melhor */
+        transition: all 0.2s ease-in-out;
+        background-color: #212529;
+        overflow: hidden;
+    }
+    .map-card img {
+        width: 100%;
+        height: 75px;
+        object-fit: cover;
+        transition: all 0.2s ease-in-out;
+    }
+    .map-card .map-name {
+        font-weight: bold;
+    }
+    .map-card.banned {
+        opacity: 0.4;
+        transform: scale(0.95);
+    }
+
+    /* --- JUSTIFICATIVA TÉCNICA (NOVA ABORDAGEM) --- */
+    /* Esta é a solução mais limpa. Apenas aplicamos uma borda verde
+       diretamente ao card quando ele é escolhido. A cor da borda do time
+       (azul/laranja) é removida para não haver conflito. */
+    .map-card.picked {
+        border-color: #198754; /* Verde sucesso do Bootstrap */
+        box-shadow: 0 0 12px #198754;
+    }
+
+    .map-card:not(.disabled):not(.banned):hover {
+        border-color: #ffc107;
+        transform: scale(1.05);
+    }
+    .disabled {
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container text-center">
+    <div id="status-header">
+        <h1 class="mb-3">Sala de Veto</h1>
+        <h4 id="teams-display" class="mb-4"></h4>
+        <div id="turn-indicator" class="alert alert-info" role="alert">
+            Carregando...
+        </div>
+    </div>
+
+    <div id="map-pool-container" class="map-pool my-5">
+        </div>
+
+    <div id="results-container" class="d-none">
+        {# Este container antigo não será mais usado para exibir os resultados,
+           mas podemos mantê-lo caso queira reverter no futuro. #}
+    </div>
+</div> {# <- Este é o </div> de fechamento do container #}
+
+<div class="modal fade" id="vetoResultModal" tabindex="-1" aria-labelledby="vetoResultModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="vetoResultModalLabel">🏆 Veto Finalizado! 🏆</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="final-maps-modal-body">
+        </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const TOKEN = '{{ token }}';
+    const MY_TEAM_ID = parseInt('{{ team_id }}', 10);
+    let MAP_POOL = [];
+    let TEAM1 = {};
+    let TEAM2 = {};
+    const STATIC_MAPS_PATH = "{{ url_for('static', filename='maps/') }}";
+
+    // JUSTIFICATIVA TÉCNICA: Variável para controlar o estado e
+    // garantir que o popup de resultado seja exibido apenas uma vez.
+    let lastKnownStatus = 'pending';
+
+    function getTeamClass(teamId) {
+        if (!TEAM1.id) return '';
+        return teamId === TEAM1.id ? 'team1' : 'team2';
+    }
+
+    function render(state) {
+        const veto = state.veto;
+        TEAM1 = veto.match.team1;
+        TEAM2 = veto.match.team2;
+        
+        document.getElementById('teams-display').innerHTML = `
+            <span class="text-primary fw-bold">${TEAM1.name}</span> vs <span class="text-warning fw-bold">${TEAM2.name}</span>`;
+
+        const poolContainer = document.getElementById('map-pool-container');
+
+        state.map_pool.forEach(map => {
+            const isBanned = veto.banned_maps?.includes(map);
+            const pickedInfo = veto.picked_maps?.find(p => p.map === map);
+            const isMyTurn = veto.current_turn_team_id === MY_TEAM_ID;
+
+            let cardClass = 'map-card card text-white';
+            if (pickedInfo) cardClass += ' picked'; // Apenas a classe 'picked' é necessária
+            if (isBanned) cardClass += ' banned';
+            if (!isMyTurn || isBanned || pickedInfo || veto.status === 'completed') {
+                cardClass += ' disabled';
+            }
+
+            let mapCardEl = document.getElementById(`map-${map}`);
+
+            // --- LÓGICA ATUALIZADA AQUI ---
+            // **JUSTIFICATIVA TÉCNICA:** O HTML foi simplificado, removendo o 'div'
+            // da sobreposição, pois não é mais necessário.
+            if (!mapCardEl) {
+                mapCardEl = document.createElement('div');
+                mapCardEl.id = `map-${map}`;
+                mapCardEl.onclick = () => handleMapClick(map);
+
+                mapCardEl.innerHTML = `
+                    <img src="${STATIC_MAPS_PATH}${map}.jpg" alt="${map}" onerror="this.style.display='none'">
+                    <div class="card-body p-2">
+                        <p class="card-text map-name text-center">${map.replace('de_', '').toUpperCase()}</p>
+                    </div>
+                `;
+                poolContainer.appendChild(mapCardEl);
+            }
+
+            mapCardEl.className = cardClass;
+
+            // Controle do filtro cinza para banidos (o único controle via JS necessário agora)
+            const imgElement = mapCardEl.querySelector('img');
+            imgElement.style.filter = isBanned ? 'grayscale(100%)' : 'none';
+        });
+        
+        const turnIndicator = document.getElementById('turn-indicator');
+        
+        // JUSTIFICATIVA TÉCNICA: Nova lógica para exibir o resultado em um popup.
+        // Ele verifica se o status mudou para 'completed' para acionar o modal.
+        if (veto.status === 'completed') {
+            turnIndicator.classList.add('d-none'); // Esconde o indicador de turno
+
+            if (lastKnownStatus !== 'completed') {
+                let finalMapsText = '';
+                if (veto.format === 'MD1') {
+                    const lastMap = state.map_pool.filter(m => !veto.banned_maps.includes(m));
+                    finalMapsText = `<p class="fs-5">O mapa a ser jogado é: <strong class="text-warning">${lastMap[0].replace('de_', '').toUpperCase()}</strong></p>`;
+                } else { // MD3
+                    const pickedMaps = veto.picked_maps;
+                    const team1Pick = pickedMaps.find(p => p.team_id === TEAM1.id);
+                    const team2Pick = pickedMaps.find(p => p.team_id === TEAM2.id);
+                    const deciderMap = state.map_pool.filter(m => !veto.banned_maps.includes(m) && !pickedMaps.some(p => p.map === m))[0];
+
+                    finalMapsText = `<p><strong>Mapa 1 (Escolha de ${TEAM1.name}):</strong> ${team1Pick.map.replace('de_', '').toUpperCase()}</p>
+                                     <p><strong>Mapa 2 (Escolha de ${TEAM2.name}):</strong> ${team2Pick.map.replace('de_', '').toUpperCase()}</p>
+                                     <hr>
+                                     <p><strong>Mapa Decisivo:</strong> ${deciderMap.replace('de_', '').toUpperCase()}</p>`;
+                }
+                
+                // Injeta o HTML no corpo do modal
+                document.getElementById('final-maps-modal-body').innerHTML = finalMapsText;
+
+                // Cria a instância e exibe o modal
+                const resultModal = new bootstrap.Modal(document.getElementById('vetoResultModal'));
+                resultModal.show();
+            }
+        } else {
+            const currentTurnTeam = veto.current_turn_team_id === TEAM1.id ? TEAM1 : TEAM2;
+            turnIndicator.textContent = `É a vez de ${currentTurnTeam.name} (${getVetoAction(veto)})`;
+        }
+        
+        // Atualiza o último estado conhecido
+        lastKnownStatus = veto.status;
+    }
+
+    function getVetoAction(veto) {
+        const turnNumber = (veto.banned_maps?.length || 0) + (veto.picked_maps?.length || 0);
+        if (veto.format === 'MD1') return 'BANIR';
+        if ([0, 1].includes(turnNumber)) return 'BANIR';
+        if ([2, 3].includes(turnNumber)) return 'ESCOLHER';
+        return '';
+    }
+
+    async function handleMapClick(map) {
+        const mapCard = document.getElementById(`map-${map}`);
+        if (mapCard.classList.contains('disabled')) return;
+        
+        const state = await getStatus();
+        const action = getVetoAction(state.veto).toLowerCase();
+        
+        if (!action) return; // Não faz nada se a ação estiver vazia
+
+        try {
+            const response = await fetch(`/api/veto/${TOKEN}/act`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    team_id: MY_TEAM_ID,
+                    action: action,
+                    map: map
+                })
+            });
+            if (!response.ok) {
+                const error = await response.json();
+                alert(`Erro: ${error.error}`);
+                return;
+            }
+            await getStatus(true);
+        } catch (err) {
+            console.error('Falha ao executar ação de veto:', err);
+        }
+    }
+
+    async function getStatus(force = false) {
+        try {
+            const response = await fetch(`/api/veto/${TOKEN}/status`);
+            if (!response.ok) {
+                console.error("API Error: Falha ao buscar status.");
+                return;
+            }
+            const state = await response.json();
+            MAP_POOL = state.map_pool;
+            render(state);
+            return state;
+        } catch (err) {
+            console.error('Falha ao buscar status do veto:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        getStatus();
+        setInterval(getStatus, 3000);
+    });
+
+</script>
+{% endblock %}

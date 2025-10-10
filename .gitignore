@@ -1,0 +1,16 @@
+# Ambientes Virtuais
+venv/
+*.venv
+.env
+
+# Arquivos de cache do Python
+__pycache__/
+*.py[cod]
+
+# Arquivos de dependências locais
+*.egg-info/
+dist/
+build/
+
+# Arquivos de sistema
+.DS_Store

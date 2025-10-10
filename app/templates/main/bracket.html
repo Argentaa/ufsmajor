@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Chave do Torneio - UFSMAJOR{% endblock %}
+
+{% block content %}
+
+<div class="text-center">
+            <img src="{{ url_for('static', filename='img/ufsmajor-semfundo.png') }}" alt="Logo UFSMAJOR" class="img-fluid" style="max-width: 200px;">
+        </div>
+<div id="bracket-container" class="row g-3 text-center">
+    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-1">
+        <h5>Quartas</h5>
+    </div>
+    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-2">
+        <h5>Semifinais</h5>
+    </div>
+    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-3">
+        <h5>Final</h5>
+    </div>
+    <div class="col-md-3 d-flex flex-column justify-content-center align-items-center" id="winner-column">
+        <h5>🏆 Campeão 🏆</h5>
+        <div id="champion-card" class="p-2 border rounded bg-dark my-2 w-100" style="min-height: 120px;">
+            <span class="text-muted">Aguardando...</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Função para atualizar o conteúdo de um elemento no DOM de forma segura
+    function updateElement(id, content, isWinner = false) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = content || 'Aguardando...';
+            el.classList.remove('text-muted', 'text-success', 'fw-bold');
+            if (!content) {
+                el.classList.add('text-muted');
+            } else if (isWinner) {
+                el.classList.add('text-success', 'fw-bold');
+            }
+        }
+    }
+
+    // Função principal que busca os dados e atualiza a chave
+    async function updateBracket() {
+        try {
+            const response = await fetch('/api/bracket-status');
+            if (!response.ok) return; // Não faz nada se a API falhar
+            
+            const matches = await response.json();
+
+            if (matches.length === 0) {
+                // Se não houver partidas, exibe uma mensagem
+                const container = document.getElementById('bracket-container');
+                if(container.childElementCount <= 4) { // Previne adicionar a msg múltiplas vezes
+                    container.innerHTML = '<div class="col-12"><div class="alert alert-info">A chave do torneio ainda não foi gerada. Volte mais tarde!</div></div>';
+                }
+                return;
+            }
+
+            // Limpa o conteúdo das rodadas antes de recriar
+            document.getElementById('round-1').innerHTML = '<h5>Quartas</h5>';
+            document.getElementById('round-2').innerHTML = '<h5>Semifinais</h5>';
+            document.getElementById('round-3').innerHTML = '<h5>Final</h5>';
+            
+            // Cria os cards de partida
+            matches.forEach(match => {
+                const roundContainer = document.getElementById(`round-${match.round_number}`);
+                if (roundContainer) {
+                    let matchCard = document.getElementById(`match-${match.id}-card`);
+                    if (!matchCard) {
+                        matchCard = document.createElement('div');
+                        matchCard.id = `match-${match.id}-card`;
+                        matchCard.className = 'p-2 border rounded bg-dark my-2';
+                        matchCard.innerHTML = `
+                            <div id="match-${match.id}-team1"></div>
+                            <small class="my-1 d-block">vs</small>
+                            <div id="match-${match.id}-team2"></div>
+                        `;
+                        roundContainer.appendChild(matchCard);
+                    }
+                    
+                    const team1Name = match.team1 ? match.team1.name : null;
+                    const team2Name = match.team2 ? match.team2.name : null;
+                    const winnerName = match.winner ? match.winner.name : null;
+
+                    updateElement(`match-${match.id}-team1`, team1Name, winnerName === team1Name);
+                    updateElement(`match-${match.id}-team2`, team2Name, winnerName === team2Name);
+                }
+            });
+
+            // Atualiza o campeão
+            const finalMatch = matches.find(m => m.round_number === 3);
+            if (finalMatch && finalMatch.winner) {
+                updateElement('champion-card', finalMatch.winner.name, true);
+            } else {
+                 updateElement('champion-card', null, false);
+            }
+
+        } catch (error) {
+            console.error('Erro ao atualizar a chave:', error);
+        }
+    }
+
+    // Chama a função uma vez no carregamento da página e depois a cada 5 segundos
+    document.addEventListener('DOMContentLoaded', () => {
+        updateBracket();
+        setInterval(updateBracket, 5000); // Atualiza a cada 5 segundos
+    });
+</script>
+{% endblock %}

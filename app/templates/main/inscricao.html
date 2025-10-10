@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Inscrição - UFSMAJOR{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8 col-md-10">
+        <div class="text-center mb-4">
+            <img src="{{ url_for('static', filename='img/ufsmajor-semfundo.png') }}" alt="Logo UFSMAJOR" class="img-fluid" style="max-width: 300px;">
+        </div>
+
+        <div class="card border-secondary mb-4">
+            <div class="card-body text-center">
+                <h5 class="card-title">Vagas Restantes</h5>
+                <p class="display-4 fw-bold">{{ vagas_restantes }} / 8</p>
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% if vagas_restantes > 0 %}
+        <form method="POST" action="{{ url_for('main.home') }}">
+            <fieldset class="mb-4">
+                <legend class="h5">Dados da Equipe</legend>
+                <div class="mb-3">
+                    <label for="team_name" class="form-label">Nome da Equipe</label>
+                    <input type="text" class="form-control" id="team_name" name="team_name" required>
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-4">
+                <legend class="h5">Jogador 1 (Líder)</legend>
+                <div class="mb-3">
+                    <label for="p1_name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="p1_name" name="p1_name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="p1_steam" class="form-label">Link do Perfil Steam</label>
+                    <input type="url" class="form-control" id="p1_steam" name="p1_steam" placeholder="https://steamcommunity.com/id/..." required>
+                </div>
+                <div class="mb-3">
+                    <label for="p1_discord" class="form-label">Discord</label>
+                    <input type="text" class="form-control" id="p1_discord" name="p1_discord" placeholder="usuario#1234" required>
+                </div>
+            </fieldset>
+
+            <fieldset class="mb-4">
+                <legend class="h5">Jogador 2</legend>
+                <div class="mb-3">
+                    <label for="p2_name" class="form-label">Nome</label>
+                    <input type="text" class="form-control" id="p2_name" name="p2_name" required>
+                </div>
+                <div class="mb-3">
+                    <label for="p2_steam" class="form-label">Link do Perfil Steam</label>
+                    <input type="url" class="form-control" id="p2_steam" name="p2_steam" placeholder="https://steamcommunity.com/id/..." required>
+                </div>
+                <div class="mb-3">
+                    <label for="p2_discord" class="form-label">Discord</label>
+                    <input type="text" class="form-control" id="p2_discord" name="p2_discord" placeholder="usuario#1234" required>
+                </div>
+            </fieldset>
+
+            <div class="d-grid">
+                <button type="submit" class="btn btn-primary btn-lg" style="margin-bottom: 30px;">Inscrever Equipe</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="alert alert-info text-center" role="alert">
+            <h4 class="alert-heading">Inscrições Encerradas!</h4>
+            <p>Todas as 8 vagas já foram preenchidas. Fique de olho na chave do torneio!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
