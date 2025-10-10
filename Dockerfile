@@ -1,13 +1,12 @@
 # Estágio 1: Build
 # Usamos uma imagem Python oficial e específica para garantir consistência.
 # A tag 'slim' resulta em uma imagem menor.
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Define o diretório de trabalho dentro do container
 WORKDIR /app
 
-# Instala as dependências do sistema necessárias para compilação (se houver)
-# e depois copia os arquivos de dependência da aplicação.
+# Copia os arquivos de dependência da aplicação.
 COPY requirements.txt .
 
 # Instala as dependências em um ambiente virtual dentro da imagem
@@ -15,10 +14,10 @@ COPY requirements.txt .
 RUN python -m venv /opt/venv && \
     /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
 
-# Estágio 1: Build
-# Usamos uma imagem Python oficial e específica para garantir consistência.
-# A tag 'slim' resulta em uma imagem menor.
-FROM python:3.11-slim AS builder
+# Estágio 2: Final
+# Partimos de uma imagem limpa para a versão final, reduzindo o tamanho
+# e a superfície de ataque ao não incluir ferramentas de build.
+FROM python:3.11-slim
 
 # Cria um usuário não-root para executar a aplicação.
 # Rodar como não-root é uma prática de segurança fundamental.
