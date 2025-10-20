@@ -2,111 +2,223 @@
 
 {% block title %}Chave do Torneio - UFSMAJOR{% endblock %}
 
-{% block content %}
+{% block styles %}
+<style>
+    body {
+        background-color: #1a1a1a;
+        color: #e0e0e0;
+    }
+    .bracket-container {
+        display: flex;
+        justify-content: space-around;
+        padding: 2rem 0;
+        align-items: center; /* Alinha as colunas verticalmente */
+    }
+    .round-column {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
+        flex: 1;
+        padding: 0 1rem;
+        height: 100%; /* Garante que as colunas se estiquem */
+    }
+    .match-card {
+        background-color: #2c2c2c;
+        border: 1px solid #444;
+        border-radius: 8px;
+        margin: 20px 0;
+        padding: 1rem;
+        position: relative;
+        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        min-height: 120px; /* Altura mínima para alinhamento */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
+    .match-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+    }
+    .team {
+        position: relative;
+        padding: 0.5rem 0;
+        font-weight: bold;
+        font-size: 1.1rem;
+    }
+    .team.winner {
+        color: #28a745; /* Verde Sucesso */
+    }
+    .team.loser {
+        color: #dc3545; /* Vermelho Perigo */
+        opacity: 0.6;
+    }
+    .team .players-tooltip {
+        visibility: hidden;
+        width: max-content;
+        background-color: #000;
+        color: #fff;
+        text-align: center;
+        border-radius: 6px;
+        padding: 8px;
+        position: absolute;
+        z-index: 1;
+        bottom: 125%;
+        left: 50%;
+        transform: translateX(-50%);
+        opacity: 0;
+        transition: opacity 0.3s;
+        font-size: 0.9rem;
+        pointer-events: none; /* Impede que o tooltip interfira no hover */
+    }
+    .team:hover .players-tooltip {
+        visibility: visible;
+        opacity: 1;
+    }
+    .vs-separator {
+        color: #ffc107; /* Amarelo Bootstrap */
+        font-weight: bold;
+        margin: 0.2rem 0;
+    }
+    .round-title {
+        text-align: center;
+        font-weight: bold;
+        font-size: 1.5rem;
+        color: #ffc107;
+        margin-bottom: 2rem;
+    }
+    .champion-card {
+        text-align: center;
+        background-color: #2c2c2c;
+        padding: 1.5rem;
+    }
+    .champion-name {
+        font-size: 2rem;
+        color: #ffc107;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
 
-<div class="text-center">
-            <img src="{{ url_for('static', filename='img/ufsmajor-semfundo.png') }}" alt="Logo UFSMAJOR" class="img-fluid" style="max-width: 200px;">
-        </div>
-<div id="bracket-container" class="row g-3 text-center">
-    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-1">
-        <h5>Quartas</h5>
-    </div>
-    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-2">
-        <h5>Semifinais</h5>
-    </div>
-    <div class="col-md-3 d-flex flex-column justify-content-around" id="round-3">
-        <h5>Final</h5>
-    </div>
-    <div class="col-md-3 d-flex flex-column justify-content-center align-items-center" id="winner-column">
-        <h5>🏆 Campeão 🏆</h5>
-        <div id="champion-card" class="p-2 border rounded bg-dark my-2 w-100" style="min-height: 120px;">
-            <span class="text-muted">Aguardando...</span>
-        </div>
-    </div>
+
+{% block content %}
+<div class="text-center mb-4">
+    <img src="{{ url_for('static', filename='img/ufsmajor-semfundo.png') }}" alt="Logo UFSMAJOR" class="img-fluid" style="max-width: 200px;">
 </div>
+
+<div id="bracket-container" class="bracket-container">
+    </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Função para atualizar o conteúdo de um elemento no DOM de forma segura
-    function updateElement(id, content, isWinner = false) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.textContent = content || 'Aguardando...';
-            el.classList.remove('text-muted', 'text-success', 'fw-bold');
-            if (!content) {
-                el.classList.add('text-muted');
-            } else if (isWinner) {
-                el.classList.add('text-success', 'fw-bold');
-            }
+    function createTeamElement(team, winnerName) {
+        if (!team || !team.name) {
+            return '<div class="team text-muted">Aguardando...</div>';
         }
-    }
 
-    // Função principal que busca os dados e atualiza a chave
+        const isWinner = winnerName === team.name;
+        const teamClass = winnerName ? (isWinner ? 'winner' : 'loser') : '';
+        const playersTooltip = team.players.map(p => p.name).join('<br>');
+
+        return `
+            <div class="team ${teamClass}">
+                ${team.name}
+                <div class="players-tooltip">${playersTooltip}</div>
+            </div>
+        `;
+    }
+    
+    // --- LÓGICA DE RENDERIZAÇÃO ATUALIZADA AQUI ---
     async function updateBracket() {
         try {
             const response = await fetch('/api/bracket-status');
-            if (!response.ok) return; // Não faz nada se a API falhar
-            
+            if (!response.ok) return;
             const matches = await response.json();
 
+            const bracketContainer = document.getElementById('bracket-container');
             if (matches.length === 0) {
-                // Se não houver partidas, exibe uma mensagem
-                const container = document.getElementById('bracket-container');
-                if(container.childElementCount <= 4) { // Previne adicionar a msg múltiplas vezes
-                    container.innerHTML = '<div class="col-12"><div class="alert alert-info">A chave do torneio ainda não foi gerada. Volte mais tarde!</div></div>';
-                }
+                bracketContainer.innerHTML = '<div class="col-12"><div class="alert alert-info">A chave do torneio ainda não foi gerada. Volte mais tarde!</div></div>';
                 return;
             }
 
-            // Limpa o conteúdo das rodadas antes de recriar
-            document.getElementById('round-1').innerHTML = '<h5>Quartas</h5>';
-            document.getElementById('round-2').innerHTML = '<h5>Semifinais</h5>';
-            document.getElementById('round-3').innerHTML = '<h5>Final</h5>';
-            
-            // Cria os cards de partida
-            matches.forEach(match => {
-                const roundContainer = document.getElementById(`round-${match.round_number}`);
-                if (roundContainer) {
-                    let matchCard = document.getElementById(`match-${match.id}-card`);
-                    if (!matchCard) {
-                        matchCard = document.createElement('div');
-                        matchCard.id = `match-${match.id}-card`;
-                        matchCard.className = 'p-2 border rounded bg-dark my-2';
-                        matchCard.innerHTML = `
-                            <div id="match-${match.id}-team1"></div>
-                            <small class="my-1 d-block">vs</small>
-                            <div id="match-${match.id}-team2"></div>
-                        `;
-                        roundContainer.appendChild(matchCard);
-                    }
-                    
-                    const team1Name = match.team1 ? match.team1.name : null;
-                    const team2Name = match.team2 ? match.team2.name : null;
-                    const winnerName = match.winner ? match.winner.name : null;
+            bracketContainer.innerHTML = ''; // Limpa o container
 
-                    updateElement(`match-${match.id}-team1`, team1Name, winnerName === team1Name);
-                    updateElement(`match-${match.id}-team2`, team2Name, winnerName === team2Name);
+            const rounds = { 1: [], 2: [], 3: [] };
+            matches.forEach(m => {
+                if(rounds[m.round_number]) {
+                    rounds[m.round_number].push(m);
                 }
             });
-
-            // Atualiza o campeão
-            const finalMatch = matches.find(m => m.round_number === 3);
-            if (finalMatch && finalMatch.winner) {
-                updateElement('champion-card', finalMatch.winner.name, true);
-            } else {
-                 updateElement('champion-card', null, false);
+            
+            // Função auxiliar para criar um card de partida
+            function createMatchCard(match) {
+                const winnerName = match.winner ? match.winner.name : null;
+                const matchCard = document.createElement('div');
+                matchCard.className = 'match-card';
+                if (match) {
+                     matchCard.innerHTML = `
+                        ${createTeamElement(match.team1, winnerName)}
+                        <div class="vs-separator">vs</div>
+                        ${createTeamElement(match.team2, winnerName)}
+                    `;
+                } else {
+                     matchCard.innerHTML = `
+                        <div class="team text-muted">Aguardando...</div>
+                        <div class="vs-separator">vs</div>
+                        <div class="team text-muted">Aguardando...</div>
+                    `;
+                }
+                return matchCard;
             }
+
+            // Função auxiliar para criar uma coluna
+            function createColumn(title, matchesList) {
+                const col = document.createElement('div');
+                col.className = 'round-column';
+                col.innerHTML = `<h5 class="round-title">${title}</h5>`;
+                matchesList.forEach(match => {
+                    col.appendChild(createMatchCard(match));
+                });
+                return col;
+            }
+
+            // Separa as partidas para o layout espelhado
+            const leftQuarters = rounds[1].slice(0, 2);
+            const rightQuarters = rounds[1].slice(2, 4);
+            const leftSemi = rounds[2].slice(0, 1);
+            const rightSemi = rounds[2].slice(1, 2);
+            const finalMatch = rounds[3] ? rounds[3] : [];
+
+            // Monta as colunas na ordem correta
+            bracketContainer.appendChild(createColumn('Quartas', leftQuarters));
+            bracketContainer.appendChild(createColumn('Semifinais', leftSemi));
+            
+            // Coluna Central (Final e Campeão)
+            const finalColumn = createColumn('Final', finalMatch);
+            const championCard = document.createElement('div');
+            championCard.className = 'match-card champion-card';
+            const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
+            
+            let championContent = '<span class="text-muted">Aguardando...</span>';
+            if(finalWinner) {
+                championContent = `<span class="champion-name">${finalWinner}</span>`;
+            }
+            championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆Campeão🏆</h5> ${championContent}`;
+            finalColumn.appendChild(championCard);
+            bracketContainer.appendChild(finalColumn);
+
+            bracketContainer.appendChild(createColumn('Semifinais', rightSemi));
+            bracketContainer.appendChild(createColumn('Quartas', rightQuarters));
 
         } catch (error) {
             console.error('Erro ao atualizar a chave:', error);
         }
     }
 
-    // Chama a função uma vez no carregamento da página e depois a cada 5 segundos
     document.addEventListener('DOMContentLoaded', () => {
         updateBracket();
-        setInterval(updateBracket, 5000); // Atualiza a cada 5 segundos
+        setInterval(updateBracket, 5000);
     });
 </script>
 {% endblock %}

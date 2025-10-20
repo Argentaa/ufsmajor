@@ -12,11 +12,11 @@ api = Blueprint('api', __name__)
 def bracket_status():
     """
     Endpoint que retorna o estado atual de todas as partidas da chave
-    em formato JSON.
+    em formato JSON, incluindo os jogadores de cada time.
     """
     try:
         matches_res = supabase.table('matches') \
-            .select('*, team1:team1_id(name), team2:team2_id(name), winner:winner_id(name)') \
+            .select('*, team1:team1_id(name, players(*)), team2:team2_id(name, players(*)), winner:winner_id(name)') \
             .order('round_number') \
             .order('match_in_round') \
             .execute()

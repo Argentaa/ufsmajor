@@ -20,13 +20,6 @@
             </div>
         </div>
 
-        <div class="card border-secondary mb-4">
-            <div class="card-body text-center">
-                <h5 class="card-title">Vagas Restantes</h5>
-                <p class="display-4 fw-bold">{{ vagas_restantes }} / 8</p>
-            </div>
-        </div>
-
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -87,7 +80,8 @@
         {% else %}
         <div class="alert alert-info text-center" role="alert">
             <h4 class="alert-heading">Inscrições Encerradas!</h4>
-            <p>Todas as 8 vagas já foram preenchidas. Fique de olho na chave do torneio!</p>
+            <p>Todas as 8 vagas já foram preenchidas. Fique de olho na chave do torneio <a href="{{url_for('main.bracket_page')}}">AQUI!</a></p>
+
         </div>
         {% endif %}
     </div>
