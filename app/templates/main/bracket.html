@@ -96,6 +96,21 @@
         color: #ffc107;
         font-weight: bold;
     }
+    
+    /* --- MEDIA QUERY PARA RESPONSIVIDADE --- */
+    @media (max-width: 768px) {
+        .bracket-container {
+            flex-direction: column; /* Empilha as colunas verticalmente */
+        }
+        .round-column {
+            width: 100%; /* Faz as colunas ocuparem toda a largura */
+            padding: 0;
+            margin-bottom: 2rem;
+        }
+        .match-card {
+            margin: 10px 0;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -128,7 +143,6 @@
         `;
     }
     
-    // --- LÓGICA DE RENDERIZAÇÃO ATUALIZADA AQUI ---
     async function updateBracket() {
         try {
             const response = await fetch('/api/bracket-status');
@@ -150,7 +164,6 @@
                 }
             });
             
-            // Função auxiliar para criar um card de partida
             function createMatchCard(match) {
                 const winnerName = match.winner ? match.winner.name : null;
                 const matchCard = document.createElement('div');
@@ -171,7 +184,6 @@
                 return matchCard;
             }
 
-            // Função auxiliar para criar uma coluna
             function createColumn(title, matchesList) {
                 const col = document.createElement('div');
                 col.className = 'round-column';
@@ -182,33 +194,53 @@
                 return col;
             }
 
-            // Separa as partidas para o layout espelhado
             const leftQuarters = rounds[1].slice(0, 2);
             const rightQuarters = rounds[1].slice(2, 4);
             const leftSemi = rounds[2].slice(0, 1);
             const rightSemi = rounds[2].slice(1, 2);
             const finalMatch = rounds[3] ? rounds[3] : [];
 
-            // Monta as colunas na ordem correta
-            bracketContainer.appendChild(createColumn('Quartas', leftQuarters));
-            bracketContainer.appendChild(createColumn('Semifinais', leftSemi));
-            
-            // Coluna Central (Final e Campeão)
-            const finalColumn = createColumn('Final', finalMatch);
-            const championCard = document.createElement('div');
-            championCard.className = 'match-card champion-card';
-            const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
-            
-            let championContent = '<span class="text-muted">Aguardando...</span>';
-            if(finalWinner) {
-                championContent = `<span class="champion-name">${finalWinner}</span>`;
-            }
-            championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆Campeão🏆</h5> ${championContent}`;
-            finalColumn.appendChild(championCard);
-            bracketContainer.appendChild(finalColumn);
+            // --- LÓGICA DE MONTAGEM ATUALIZADA PARA CELULAR ---
+            const isMobile = window.innerWidth <= 768;
 
-            bracketContainer.appendChild(createColumn('Semifinais', rightSemi));
-            bracketContainer.appendChild(createColumn('Quartas', rightQuarters));
+            if (isMobile) {
+                // Em celular, monta tudo em ordem lógica (vertical)
+                bracketContainer.appendChild(createColumn('Quartas', rounds[1]));
+                bracketContainer.appendChild(createColumn('Semifinais', rounds[2]));
+                const finalColumn = createColumn('Final', finalMatch);
+                const championCard = document.createElement('div');
+                championCard.className = 'match-card champion-card';
+                const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
+                
+                let championContent = '<span class="text-muted">Aguardando...</span>';
+                if(finalWinner) {
+                    championContent = `<span class="champion-name">${finalWinner}</span>`;
+                }
+                championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5> ${championContent}`;
+                finalColumn.appendChild(championCard);
+                bracketContainer.appendChild(finalColumn);
+
+            } else {
+                // Em desktop, monta no formato espelhado
+                bracketContainer.appendChild(createColumn('Quartas', leftQuarters));
+                bracketContainer.appendChild(createColumn('Semifinais', leftSemi));
+                
+                const finalColumn = createColumn('Final', finalMatch);
+                const championCard = document.createElement('div');
+                championCard.className = 'match-card champion-card';
+                const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
+                
+                let championContent = '<span class="text-muted">Aguardando...</span>';
+                if(finalWinner) {
+                    championContent = `<span class="champion-name">${finalWinner}</span>`;
+                }
+                championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5> ${championContent}`;
+                finalColumn.appendChild(championCard);
+                bracketContainer.appendChild(finalColumn);
+
+                bracketContainer.appendChild(createColumn('Semifinais', rightSemi));
+                bracketContainer.appendChild(createColumn('Quartas', rightQuarters));
+            }
 
         } catch (error) {
             console.error('Erro ao atualizar a chave:', error);
