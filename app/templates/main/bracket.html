@@ -28,7 +28,7 @@
         margin: 20px 0;
         padding: 1rem;
         position: relative;
-        transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        transition: all 0.2s ease-in-out; /* Transição para as mudanças */
         min-height: 120px; /* Altura mínima para alinhamento */
         display: flex;
         flex-direction: column;
@@ -126,15 +126,16 @@
 
 {% block scripts %}
 <script>
+    // Flag para controlar se a estrutura inicial já foi renderizada
+    let isBracketInitialized = false;
+
     function createTeamElement(team, winnerName) {
         if (!team || !team.name) {
             return '<div class="team text-muted">Aguardando...</div>';
         }
-
         const isWinner = winnerName === team.name;
         const teamClass = winnerName ? (isWinner ? 'winner' : 'loser') : '';
         const playersTooltip = team.players.map(p => p.name).join('<br>');
-
         return `
             <div class="team ${teamClass}">
                 ${team.name}
@@ -142,104 +143,118 @@
             </div>
         `;
     }
-    
+
+    // --- NOVA FUNÇÃO PARA GERAR APENAS O CONTEÚDO INTERNO DE UM CARD ---
+    function createMatchCardInnerHtml(match) {
+        const winnerName = match.winner ? match.winner.name : null;
+        return `
+            ${createTeamElement(match.team1, winnerName)}
+            <div class="vs-separator">vs</div>
+            ${createTeamElement(match.team2, winnerName)}
+        `;
+    }
+
     async function updateBracket() {
         try {
             const response = await fetch('/api/bracket-status');
             if (!response.ok) return;
             const matches = await response.json();
-
             const bracketContainer = document.getElementById('bracket-container');
-            if (matches.length === 0) {
+
+            if (matches.length === 0 && !isBracketInitialized) {
                 bracketContainer.innerHTML = '<div class="col-12"><div class="alert alert-info">A chave do torneio ainda não foi gerada. Volte mais tarde!</div></div>';
                 return;
             }
 
-            bracketContainer.innerHTML = ''; // Limpa o container
-
-            const rounds = { 1: [], 2: [], 3: [] };
-            matches.forEach(m => {
-                if(rounds[m.round_number]) {
-                    rounds[m.round_number].push(m);
-                }
-            });
-            
-            function createMatchCard(match) {
-                const winnerName = match.winner ? match.winner.name : null;
-                const matchCard = document.createElement('div');
-                matchCard.className = 'match-card';
-                if (match) {
-                     matchCard.innerHTML = `
-                        ${createTeamElement(match.team1, winnerName)}
-                        <div class="vs-separator">vs</div>
-                        ${createTeamElement(match.team2, winnerName)}
-                    `;
-                } else {
-                     matchCard.innerHTML = `
-                        <div class="team text-muted">Aguardando...</div>
-                        <div class="vs-separator">vs</div>
-                        <div class="team text-muted">Aguardando...</div>
-                    `;
-                }
-                return matchCard;
-            }
-
-            function createColumn(title, matchesList) {
-                const col = document.createElement('div');
-                col.className = 'round-column';
-                col.innerHTML = `<h5 class="round-title">${title}</h5>`;
-                matchesList.forEach(match => {
-                    col.appendChild(createMatchCard(match));
+            // --- LÓGICA DE ATUALIZAÇÃO NÃO-DESTRUTIVA ---
+            if (isBracketInitialized) {
+                // Se já foi inicializado, apenas atualiza o conteúdo
+                matches.forEach(match => {
+                    const matchCardEl = document.getElementById(`match-${match.id}`);
+                    if (matchCardEl) {
+                        const newHtml = createMatchCardInnerHtml(match);
+                        // Atualiza o HTML apenas se ele mudou para evitar repinturas desnecessárias
+                        if (matchCardEl.innerHTML.trim() !== newHtml.trim()) {
+                            matchCardEl.innerHTML = newHtml;
+                        }
+                    }
                 });
-                return col;
-            }
 
-            const leftQuarters = rounds[1].slice(0, 2);
-            const rightQuarters = rounds[1].slice(2, 4);
-            const leftSemi = rounds[2].slice(0, 1);
-            const rightSemi = rounds[2].slice(1, 2);
-            const finalMatch = rounds[3] ? rounds[3] : [];
-
-            // --- LÓGICA DE MONTAGEM ATUALIZADA PARA CELULAR ---
-            const isMobile = window.innerWidth <= 768;
-
-            if (isMobile) {
-                // Em celular, monta tudo em ordem lógica (vertical)
-                bracketContainer.appendChild(createColumn('Quartas', rounds[1]));
-                bracketContainer.appendChild(createColumn('Semifinais', rounds[2]));
-                const finalColumn = createColumn('Final', finalMatch);
-                const championCard = document.createElement('div');
-                championCard.className = 'match-card champion-card';
-                const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
+                // Atualiza o campeão
+                const championCardEl = document.getElementById('champion-card-content');
+                const finalMatch = matches.find(m => m.round_number === 3);
+                const finalWinnerName = finalMatch && finalMatch.winner ? finalMatch.winner.name : null;
                 
-                let championContent = '<span class="text-muted">Aguardando...</span>';
-                if(finalWinner) {
-                    championContent = `<span class="champion-name">${finalWinner}</span>`;
+                let championHtml = '<span class="text-muted">Aguardando...</span>';
+                if (finalWinnerName) {
+                    championHtml = `<span class="champion-name">${finalWinnerName}</span>`;
                 }
-                championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5> ${championContent}`;
-                finalColumn.appendChild(championCard);
-                bracketContainer.appendChild(finalColumn);
+
+                if (championCardEl && championCardEl.innerHTML.trim() !== championHtml.trim()) {
+                    championCardEl.innerHTML = championHtml;
+                }
 
             } else {
-                // Em desktop, monta no formato espelhado
-                bracketContainer.appendChild(createColumn('Quartas', leftQuarters));
-                bracketContainer.appendChild(createColumn('Semifinais', leftSemi));
-                
-                const finalColumn = createColumn('Final', finalMatch);
-                const championCard = document.createElement('div');
-                championCard.className = 'match-card champion-card';
-                const finalWinner = finalMatch.length > 0 && finalMatch[0].winner ? finalMatch[0].winner.name : null;
-                
-                let championContent = '<span class="text-muted">Aguardando...</span>';
-                if(finalWinner) {
-                    championContent = `<span class="champion-name">${finalWinner}</span>`;
-                }
-                championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5> ${championContent}`;
-                finalColumn.appendChild(championCard);
-                bracketContainer.appendChild(finalColumn);
+                // --- LÓGICA DE CONSTRUÇÃO INICIAL (executa apenas uma vez) ---
+                bracketContainer.innerHTML = ''; 
 
-                bracketContainer.appendChild(createColumn('Semifinais', rightSemi));
-                bracketContainer.appendChild(createColumn('Quartas', rightQuarters));
+                const rounds = { 1: [], 2: [], 3: [] };
+                matches.forEach(m => {
+                    if(rounds[m.round_number]) rounds[m.round_number].push(m);
+                });
+                
+                function createMatchCard(match) {
+                    const matchCard = document.createElement('div');
+                    matchCard.className = 'match-card';
+                    matchCard.id = `match-${match.id}`; // Adiciona um ID único
+                    matchCard.innerHTML = createMatchCardInnerHtml(match);
+                    return matchCard;
+                }
+
+                function createColumn(title, matchesList) {
+                    const col = document.createElement('div');
+                    col.className = 'round-column';
+                    col.innerHTML = `<h5 class="round-title">${title}</h5>`;
+                    matchesList.forEach(match => col.appendChild(createMatchCard(match)));
+                    return col;
+                }
+                
+                const isMobile = window.innerWidth <= 768;
+
+                if (isMobile) {
+                    bracketContainer.appendChild(createColumn('Quartas', rounds[1]));
+                    bracketContainer.appendChild(createColumn('Semifinais', rounds[2]));
+                    const finalColumn = createColumn('Final', rounds[3]);
+                    const championCard = document.createElement('div');
+                    championCard.className = 'match-card champion-card';
+                    const finalWinnerName = rounds[3][0] && rounds[3][0].winner ? rounds[3][0].winner.name : null;
+                    let championContent = finalWinnerName ? `<span class="champion-name">${finalWinnerName}</span>` : '<span class="text-muted">Aguardando...</span>';
+                    championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5><div id="champion-card-content">${championContent}</div>`;
+                    finalColumn.appendChild(championCard);
+                    bracketContainer.appendChild(finalColumn);
+                } else {
+                    const leftQuarters = rounds[1].slice(0, 2);
+                    const rightQuarters = rounds[1].slice(2, 4);
+                    const leftSemi = rounds[2].slice(0, 1);
+                    const rightSemi = rounds[2].slice(1, 2);
+
+                    bracketContainer.appendChild(createColumn('Quartas', leftQuarters));
+                    bracketContainer.appendChild(createColumn('Semifinais', leftSemi));
+                    
+                    const finalColumn = createColumn('Final', rounds[3]);
+                    const championCard = document.createElement('div');
+                    championCard.className = 'match-card champion-card';
+                    const finalWinnerName = rounds[3][0] && rounds[3][0].winner ? rounds[3][0].winner.name : null;
+                    let championContent = finalWinnerName ? `<span class="champion-name">${finalWinnerName}</span>` : '<span class="text-muted">Aguardando...</span>';
+                    championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5><div id="champion-card-content">${championContent}</div>`;
+                    finalColumn.appendChild(championCard);
+                    bracketContainer.appendChild(finalColumn);
+
+                    bracketContainer.appendChild(createColumn('Semifinais', rightSemi));
+                    bracketContainer.appendChild(createColumn('Quartas', rightQuarters));
+                }
+
+                isBracketInitialized = true; // Marca como inicializado
             }
 
         } catch (error) {
