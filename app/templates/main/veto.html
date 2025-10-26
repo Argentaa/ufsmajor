@@ -11,7 +11,7 @@
         gap: 0.75rem;
     }
     .map-card {
-        width: 130px;
+        width: 260px;
         cursor: pointer;
         border: 3px solid transparent; /* Aumenta a espessura para um efeito melhor */
         transition: all 0.2s ease-in-out;
@@ -20,7 +20,7 @@
     }
     .map-card img {
         width: 100%;
-        height: 75px;
+        height: 100px;
         object-fit: cover;
         transition: all 0.2s ease-in-out;
     }
@@ -140,7 +140,7 @@
                 mapCardEl.innerHTML = `
                     <img src="${STATIC_MAPS_PATH}${map}.jpg" alt="${map}" onerror="this.style.display='none'">
                     <div class="card-body p-2">
-                        <p class="card-text map-name text-center">${map.replace('de_', '').toUpperCase()}</p>
+                        <p class="card-text map-name text-center">${map.toUpperCase()}</p>
                     </div>
                 `;
                 poolContainer.appendChild(mapCardEl);
@@ -164,17 +164,17 @@
                 let finalMapsText = '';
                 if (veto.format === 'MD1') {
                     const lastMap = state.map_pool.filter(m => !veto.banned_maps.includes(m));
-                    finalMapsText = `<p class="fs-5">O mapa a ser jogado é: <strong class="text-warning">${lastMap[0].replace('de_', '').toUpperCase()}</strong></p>`;
+                    finalMapsText = `<p class="fs-5">O mapa a ser jogado é: <strong class="text-warning">${lastMap[0].toUpperCase()}</strong></p>`;
                 } else { // MD3
                     const pickedMaps = veto.picked_maps;
                     const team1Pick = pickedMaps.find(p => p.team_id === TEAM1.id);
                     const team2Pick = pickedMaps.find(p => p.team_id === TEAM2.id);
                     const deciderMap = state.map_pool.filter(m => !veto.banned_maps.includes(m) && !pickedMaps.some(p => p.map === m))[0];
 
-                    finalMapsText = `<p><strong>Mapa 1 (Escolha de ${TEAM1.name}):</strong> ${team1Pick.map.replace('de_', '').toUpperCase()}</p>
-                                     <p><strong>Mapa 2 (Escolha de ${TEAM2.name}):</strong> ${team2Pick.map.replace('de_', '').toUpperCase()}</p>
+                    finalMapsText = `<p><strong>Mapa 1 (Escolha de ${TEAM1.name}):</strong> ${team1Pick.map.toUpperCase()}</p>
+                                     <p><strong>Mapa 2 (Escolha de ${TEAM2.name}):</strong> ${team2Pick.map.toUpperCase()}</p>
                                      <hr>
-                                     <p><strong>Mapa Decisivo:</strong> ${deciderMap.replace('de_', '').toUpperCase()}</p>`;
+                                     <p><strong>Mapa Decisivo:</strong> ${deciderMap.toUpperCase()}</p>`;
                 }
                 
                 // Injeta o HTML no corpo do modal
@@ -196,8 +196,8 @@
     function getVetoAction(veto) {
         const turnNumber = (veto.banned_maps?.length || 0) + (veto.picked_maps?.length || 0);
         if (veto.format === 'MD1') return 'BANIR';
-        if ([0, 1].includes(turnNumber)) return 'BANIR';
-        if ([2, 3].includes(turnNumber)) return 'ESCOLHER';
+        if ([0, 1, 2, 3].includes(turnNumber)) return 'BANIR';
+        if ([4, 5, 6].includes(turnNumber)) return 'ESCOLHER';
         return '';
     }
 

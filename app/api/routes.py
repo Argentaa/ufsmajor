@@ -3,7 +3,7 @@ from flask import Blueprint, jsonify, request, abort
 from app import supabase
 
 MAP_POOL = [
-    "de_inferno","de_nuke", "de_overpass", "de_vertigo", "de_rooftop"
+    "inferno", "nuke", "overpass", "vertigo", "mirage", "dust2", "shortdust"
 ]
 
 api = Blueprint('api', __name__)
@@ -90,14 +90,13 @@ def veto_act(token):
             banned.append(map_name)
         elif action == 'escolher':
             picked.append({'map': map_name, 'team_id': acting_team_id})
-        # --------------------------------
 
         next_turn_id = veto['match']['team2_id'] if acting_team_id == veto['match']['team1_id'] else veto['match']['team1_id']
-        
+
         is_completed = False
-        if veto['format'] == 'MD1' and len(banned) == 4:
+        if veto['format'] == 'MD1' and len(banned) == 6:
             is_completed = True
-        elif veto['format'] == 'MD3' and (len(banned) + len(picked)) == 4:
+        elif veto['format'] == 'MD3' and (len(banned) + len(picked)) == 6:
             is_completed = True
 
         new_status = 'completed' if is_completed else 'in_progress'

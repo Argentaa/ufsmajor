@@ -246,7 +246,7 @@
                     championCard.className = 'match-card champion-card';
                     const finalWinnerName = rounds[3][0] && rounds[3][0].winner ? rounds[3][0].winner.name : null;
                     let championContent = finalWinnerName ? `<span class="champion-name">${finalWinnerName}</span>` : '<span class="text-muted">Aguardando...</span>';
-                    championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆 Campeão 🏆</h5><div id="champion-card-content">${championContent}</div>`;
+                    championCard.innerHTML = `<h5 class="round-title" style="margin-bottom: 0.5rem;">🏆Campeão🏆</h5><div id="champion-card-content">${championContent}</div>`;
                     finalColumn.appendChild(championCard);
                     bracketContainer.appendChild(finalColumn);
 
